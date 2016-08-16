@@ -35,8 +35,12 @@ class PullFromGit(PullFromRepository):
         command = ["git", "fetch", "--all"]
         execute(command, target)
 
-        # Undo local changes
-        command = ["git", "reset", "--hard", "origin"]
+        # Get the current branch
+        command = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+        code, branch, error = execute(command, target)
+
+        # Undo local changes, but preserve branch
+        command = ["git", "reset", "--hard", "origin/" + branch]
         code, output, error = execute(command, target)
 
         if code == 0:
@@ -222,10 +226,11 @@ class CommitToSvn(CommitToRepository):
 
 
 def execute(command, cwd=None, env=None):
+    log.info("Execute: " + ' '.join(command))
     try:
         st = subprocess.PIPE
         proc = subprocess.Popen(
-            args=command, stdout=st, stderr=st, stdin=st, cwd=cwd, env=env)
+            args=' '.join(command), stdout=st, stderr=st, stdin=st, cwd=cwd, env=env, shell=True)
 
         (output, error) = proc.communicate()
         code = proc.returncode
