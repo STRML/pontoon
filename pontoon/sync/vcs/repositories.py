@@ -17,8 +17,16 @@ class PullFromRepositoryException(Exception):
 class PullFromRepository(object):
 
     def __init__(self, source, target):
-        self.source = source
+        source_resolved, branch = self.parse_source(source)
+        self.source = source_resolved
+        self.branch = branch
         self.target = target
+
+    def parse_source(self, source):
+        branch_split = source.split('#')
+        source = branch_split[0]
+        branch = branch_split[1] if len(branch_split) == 2 else "master"
+        return source, branch
 
     def pull(self, source=None, target=None):
         raise NotImplementedError
@@ -29,15 +37,19 @@ class PullFromGit(PullFromRepository):
     def pull(self, source=None, target=None):
         log.debug("Git: Update repository.")
 
-        source = source or self.source
+        branch = self.branch
+        if source is not None:
+            source, branch = self.parse_source(source)
+        else:
+            source = self.source
         target = target or self.target
 
         command = ["git", "fetch", "--all"]
         execute(command, target)
 
-        # Get the current branch
-        command = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
-        code, branch, error = execute(command, target)
+        # Support #master branch syntax
+        branch_split = source.split('#')
+        branch = branch_split[1] if len(branch_split) == 2 else "master"
 
         # Undo local changes, but preserve branch
         command = ["git", "reset", "--hard", "origin/" + branch]
